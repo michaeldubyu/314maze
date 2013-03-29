@@ -11,6 +11,7 @@ import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.Display;
 import org.lwjgl.opengl.DisplayMode;
+import org.lwjgl.util.vector.Matrix4f;
 
 import de.matthiasmann.twl.utils.PNGDecoder;
 import static org.lwjgl.util.glu.GLU.*;
@@ -26,17 +27,23 @@ public class PuzzleGame{
 	
     static FloatBuffer matSpecular = BufferUtils.createFloatBuffer(4);
     static FloatBuffer matAmbientAndDiffuse = BufferUtils.createFloatBuffer(4);
-	
+    
+    static Matrix4f playerMatrix = new Matrix4f();
+    static Matrix4f increPlayerMatrix = new Matrix4f();
+    private static FloatBuffer matrixData;
+
+
 	static float scale = 1.0f;
 	static float spacing = 2.5f * scale;
-	static float distX = 0;
-	static float distZ = 50;
-	static float distY = 0;
+	static float distX = 1;
+	static float distZ = 1;
+	static float distY = 5;
 	static float angleX = 0;
 	static float angleY = 0;
+	static int cameraMode = 1; //by default we are in overhead view
 
 	public static void init(){
-		
+	    
 	    tex = setupTextures("res/textures/table.png");
 	    
 		matSpecular.put(1.0f).put(1.0f).put(1.0f).put(1.0f).flip();
@@ -103,7 +110,7 @@ public class PuzzleGame{
 	    return tmp.get(0);
 	}
 	
-	public static void drawTable() {
+	public static void drawFloor() {
         glEnable(GL_TEXTURE_2D);
 	    glBindTexture(GL_TEXTURE_2D, tex);
 	    glMaterial(GL_FRONT_AND_BACK, GL_SPECULAR, matSpecular);
@@ -112,19 +119,19 @@ public class PuzzleGame{
 	    glBegin(GL_QUADS);
     		glTexCoord2d(0,0);
     		glNormal3f(0,1.0f,0);
-    		glVertex3f(-200,-200,-150);
+    		glVertex3f(-500,-10,-500);
 	    
 	    	glTexCoord2d(0,1);
 	    	glNormal3f(0,1.0f,0);
-	    	glVertex3f(-200,200,-150);
+	    	glVertex3f(-500,-20,500);
 	    	
 	    	glTexCoord2d(1,1);
 	    	glNormal3f(0,1.0f,0);
-	    	glVertex3f(200,200,-150);
+	    	glVertex3f(500,-20,500);
 	    	
 	    	glTexCoord2d(1,0);	 
 	    	glNormal3f(0,1.0f,0);
-	    	glVertex3f(200,-200,-150);
+	    	glVertex3f(500,-20,-500);
 	    glEnd();
 	    glDisable(GL_TEXTURE_2D);
 	}
@@ -180,14 +187,29 @@ public class PuzzleGame{
 	        
 		    // set up view here
 		    glLoadIdentity();
-		    gluPerspective(60, 1, 1, 1000 ); //near of 1, far of 100
+		    gluPerspective(60, 1, 1, 1500 ); //near of 1, far of 100
 		    glMatrixMode(GL_MODELVIEW);
 	        glLoadIdentity();	
-		
-	        glTranslatef(-distX,-distY,-distZ);
+	        	        
+	        if (cameraMode == 0){
+	        	//we are in the first person view
+	        	matrixData = BufferUtils.createFloatBuffer(16);
+	        	increPlayerMatrix.store(matrixData);
+	        	matrixData.flip();
+	        	glMultMatrix(matrixData);
+	        	
+	        	matrixData = BufferUtils.createFloatBuffer(16);
+	        	playerMatrix.store(matrixData);
+	        	matrixData.flip();
+
+	        	glMultMatrix(matrixData);
+	        	glGetFloat(GL_MODELVIEW_MATRIX, matrixData);
+	        	playerMatrix.load(matrixData);
+	        	matrixData.flip();
+	        }
 			//draw table
 	        glPushMatrix();
-	        drawTable();
+	        drawFloor();
 	        glPopMatrix();
 	        pollInput();
 	        
@@ -200,26 +222,34 @@ public class PuzzleGame{
 
         Display.destroy();
     }
-
+    
     public void pollInput() {
+    	glLoadIdentity();
     	if (Keyboard.isKeyDown(Keyboard.KEY_A)) {
-        	distX -= 5;
+    		glTranslatef(distX,0,0);
         }
     	else if (Keyboard.isKeyDown(Keyboard.KEY_D)) {
-        	distX += 5;
+    		glTranslatef(-distX,0,0);
         }
     	else if (Keyboard.isKeyDown(Keyboard.KEY_W)) {
-        	distY += 5;
+    		glTranslatef(0,0,distZ);
         }
     	else if (Keyboard.isKeyDown(Keyboard.KEY_S)) {
-        	distY -= 5;
+    		glTranslatef(0,0,-distZ);
         }
-    	else if (Keyboard.isKeyDown(Keyboard.KEY_UP)){
-    		distZ -= 5;
-    	}
-    	else if (Keyboard.isKeyDown(Keyboard.KEY_DOWN)){
-    		distZ += 5;
-    	}
+    	else if (Keyboard.isKeyDown(Keyboard.KEY_Q)) {
+    		glRotatef(-1,0,1,0);
+        }
+    	else if (Keyboard.isKeyDown(Keyboard.KEY_E)) {
+    		glRotatef(1,0,1,0);
+        }
+    	else if (Keyboard.isKeyDown(Keyboard.KEY_F)) {
+        	if (cameraMode == 1) cameraMode = 0;
+        	else if (cameraMode == 0) cameraMode = 1;
+        }
+    	matrixData = BufferUtils.createFloatBuffer(16);
+    	glGetFloat(GL_MODELVIEW_MATRIX, matrixData);
+    	increPlayerMatrix.load(matrixData);
     }
     
     public void updateFPS() {

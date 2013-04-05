@@ -37,6 +37,8 @@ public class PuzzleGame{
 	private static int[][] walls = new int[MAZE_WIDTH][MAZE_HEIGHT];
 	private static int playerX;
 	private static int playerY;
+	private static int lookAtX;
+	private static int lookAtY;
 	private static double playerRadius = 1;
 	
 	private static int wallRecurs;
@@ -50,6 +52,8 @@ public class PuzzleGame{
     static FloatBuffer matSpecular = BufferUtils.createFloatBuffer(4);
     static FloatBuffer matAmbientAndDiffuse = BufferUtils.createFloatBuffer(4);
     
+    static ArrayList<String> scores = new ArrayList();
+    
     static Matrix4f playerMatrix = new Matrix4f();
     static Matrix playerInvertedMatrix = new Matrix4f();
     static Matrix4f increPlayerMatrix = new Matrix4f();
@@ -57,7 +61,6 @@ public class PuzzleGame{
 
 	static int distX = 3;
 	static int distZ = 3;
-	static float distY = 5;
 
 	public static void init(){
 		gameComplete = false;
@@ -65,7 +68,7 @@ public class PuzzleGame{
 		generateMaze(40,40,false);
 		
 		Random r = new Random();
-		rat = new Rat(-r.nextInt(70), -r.nextInt(70), 5);
+		rat = new Rat(-r.nextInt(70), -r.nextInt(70), 2);
 		playerX = 0;
 		playerY = 0;		
 		
@@ -365,6 +368,8 @@ public class PuzzleGame{
 	}
 	
 	public void drawRat(int x, int y){
+		//rat movement
+		
       	//draw rat
 		glPushMatrix();
 		glEnable(GL_BLEND); 
@@ -485,19 +490,25 @@ public class PuzzleGame{
 			    
 			    glMatrixMode(GL_MODELVIEW);
 			    glLoadIdentity();
-			    glDisable(GL_DEPTH_TEST);
 	
 			    glScalef(1.1f,1.1f,0);
 			    glColor3f(1,1,1);
 			    glDisable(GL_TEXTURE_2D);
-			    glEnable(GL_COLOR_MATERIAL);
+			    glDisable(GL_DEPTH_TEST);
 			    glDisable(GL_BLEND);
+			    glEnable(GL_COLOR_MATERIAL);
+			    
 			    deltaTime = String.valueOf(System.currentTimeMillis()/1000 - startTime);
+			    
+			    SimpleText.drawString("THE RAT IS AT " + rat.getX() + " " + rat.getY(), 380,30);
+			    SimpleText.drawString("YOU ARE AT " + playerX + " " + playerY, 400,20);
 			    SimpleText.drawString("TIME ELAPSED : " + deltaTime, 400,10);
+			    
 			    glDisable(GL_COLOR_MATERIAL);
 			    
 			    Display.update();
 	        }else{
+	        	
 			    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	
 
 	        	//game complete, draw win screen				
@@ -515,9 +526,15 @@ public class PuzzleGame{
 			    glDisable(GL_TEXTURE_2D);
 			    glEnable(GL_COLOR_MATERIAL);
 			    glDisable(GL_BLEND);
-			    SimpleText.drawString("GOT THAT RAT", 220,310);
-			    SimpleText.drawString("YOUR TIME WAS : " + deltaTime + " SECONDS.", 175,300);
-			    SimpleText.drawString("TO TRY AGAIN PRESS 'R'", 200, 290);
+			    
+			    SimpleText.drawString("TO TRY AGAIN PRESS 'R'", 200, 320);
+			    SimpleText.drawString("GOT THAT RAT", 240,330);
+			    SimpleText.drawString("PREVIOUS ATTEMPTS : ", 220,310);
+			    for (String attempt : scores){
+			    	int i =  scores.indexOf(attempt);
+			    	SimpleText.drawString("ATTEMPT " + i + " : " + attempt + " SECONDS.", 200,300 - i*10);
+			    }
+			    
 			    glDisable(GL_COLOR_MATERIAL);
 			    startTime = System.currentTimeMillis()/1000;
 			    Display.update();
@@ -537,36 +554,44 @@ public class PuzzleGame{
 		double d = Math.sqrt(dx * dx + dy * dy);
 		if 	(d <= rat.getRadius() + playerRadius){
 			gameComplete = true;
+        	scores.add(deltaTime);
 			return true;
 		}
 		return false;
     }
     
+    public boolean outOfBounds(int x, int y){
+    	if (x > -77 && y>-77 && x<=0 && y<=0 ) return false;
+    	else return true;
+    	
+    }
+    
     public void pollInput() {
     	glLoadIdentity();
-    	System.out.println(playerX + " " + playerY + " " + rat.getX() + " " + rat.getY());
     	while (Keyboard.next()){
-	    	if (Keyboard.isKeyDown(Keyboard.KEY_A)) {
-    			if (!isColliding(playerX-1,playerY)){
+	    	if (Keyboard.isKeyDown(Keyboard.KEY_A)){
+    			if (!isColliding(playerX-distX,playerY) && !outOfBounds(playerX-distX,playerY)) {
     				glTranslatef(distX,0,0);
     				playerX -= 3;
     			}
 	        }
 	    	else if (Keyboard.isKeyDown(Keyboard.KEY_D)) {
-    			if (!isColliding(playerX+1,playerY)){
+    			if (!isColliding(playerX+distX,playerY) && !outOfBounds(playerX+distX,playerY)){
     				glTranslatef(-distX,0,0);
     				playerX += 3;
     			}
 	    	}
 	    	else if (Keyboard.isKeyDown(Keyboard.KEY_W)) {
-				if (!isColliding(playerX,playerY-1)){
+				if (!isColliding(playerX,playerY-distZ) && !outOfBounds(playerX,playerY-distZ)){
 	    			glTranslatef(0,0,distZ);
 					playerY -= 3;
 				}
 	    	}
 	    	else if (Keyboard.isKeyDown(Keyboard.KEY_S)) {
+	    		if (!isColliding(playerX,playerY+distZ)  && !outOfBounds(playerX,playerY+distZ)){
 	    			glTranslatef(0,0,-distZ);
 					playerY += 3;
+	    		}	
 	    	}
 	    	else if (Keyboard.isKeyDown(Keyboard.KEY_R)){
 	    		if (gameComplete == true){
@@ -584,12 +609,6 @@ public class PuzzleGame{
 		    		playerY = 0;
 	    		}
 	    	}
-//	    	else if (Keyboard.isKeyDown(Keyboard.KEY_Q)) {
-//	    		glRotatef(-90,0,1,0);
-//	        }
-//	    	else if (Keyboard.isKeyDown(Keyboard.KEY_E)) {
-//	    		glRotatef(90,0,1,0);
-//	        }
 	    	else if (Keyboard.isKeyDown(Keyboard.KEY_1)){
 	    		glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
 	    	}    	
@@ -600,7 +619,7 @@ public class PuzzleGame{
 
     	matrixData = BufferUtils.createFloatBuffer(16);
     	glGetFloat(GL_MODELVIEW_MATRIX, matrixData);
-    	increPlayerMatrix.load(matrixData);
+    	increPlayerMatrix.load(matrixData);    	
     }
     
     public void updateFPS() {

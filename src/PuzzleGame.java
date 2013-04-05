@@ -25,25 +25,14 @@ public class PuzzleGame{
 	private static int tex_wall;
 	private static int tex_ceiling;
 	private static int tex_painting;
+	private static int tex_rat;
 	
-	private static int MAZE_WIDTH = 40;
-	private static int MAZE_HEIGHT = 40;
-//	private static char[][] walls = {
-//	/*player starts here at 0,0*/
-//		{'0','0','0','|','-','|','|','-','0','0'},
-//		{'0','0','0','|','-','0','|','-','0','0'},
-//		{'0','0','0','|','-','|','|','-','-','|'},
-//		{'0','-','-','|','-','0','|','-','0','0'},
-//		{'-','-','0','|','-','|','|','-','-','0'},
-//		{'|','-','0','|','-','-','|','-','0','0'},
-//		{'-','-','0','|','-','|','|','-','0','-'},
-//		{'|','-','0','|','-','0','|','-','0','|'},
-//		{'-','-','0','|','-','0','|','-','0','|'},
-//		{'|','-','0','|','-','0','|','-','0','|'},
-//		{'|','-','0','|','-','0','|','-','0','0'},
-//
-//	};
-	private static char[][] walls = new char[MAZE_WIDTH][MAZE_HEIGHT];
+	private static int MAZE_WIDTH = 15;
+	private static int MAZE_HEIGHT = 15;
+
+	//new algorithm and structure for collisions and walls :
+	//0 for no walls, 1 for walls, draw a 5x5x5x5 square where they exist
+	private static int[][] walls = new int[MAZE_WIDTH][MAZE_HEIGHT];
 	private static int playerX;
 	private static int playerY;
 	private static int wallRecurs;
@@ -64,17 +53,17 @@ public class PuzzleGame{
     static Matrix4f increPlayerMatrix = new Matrix4f();
     private static FloatBuffer matrixData;
 
-	static float distX = 1;
-	static float distZ = 1;
+	static int distX = 2;
+	static int distZ = 2;
 	static float distY = 5;
 
 	public static void init(){
 		//initialize the walls
-		for (int i=0;i<MAZE_WIDTH;i++){
-			for (int k=0;k<MAZE_HEIGHT;k++){
-				walls[i][k] = '0';
-			}
-		} 
+//		for (int i=0;i<MAZE_WIDTH;i++){
+//			for (int k=0;k<MAZE_HEIGHT;k++){
+//				walls[i][k] = '0';
+//			}
+//		} 
 		wallRecurs = 0;	
 		
 		generateMaze(40,40,false);
@@ -89,11 +78,12 @@ public class PuzzleGame{
 			}
 			System.out.print("\n");
 		}
-		
+				
 	    tex_floor = setupTextures("res/textures/ground.png");
 	    tex_ceiling = setupTextures("res/textures/ceiling.png");
 	    tex_wall = setupTextures("res/textures/brick.png");
 	    tex_painting = setupTextures("res/textures/picture.png");
+	    tex_rat = setupTextures("res/textures/rat.png");
 
 		matSpecular.put(1.0f).put(1.0f).put(1.0f).put(1.0f).flip();
 		matAmbientAndDiffuse.put(0.5f).put(0.5f).put(0.5f).put(1.0f).flip();
@@ -336,44 +326,70 @@ public class PuzzleGame{
 	
 	public static void generateMaze(int height, int width, boolean horizontal){		
 		//we'll represent a vertical wall with |, horizontal wall with -, and no wall with 0
-		if (wallRecurs == 30) return;
+		if (wallRecurs == 50) return;
 		else wallRecurs++;
 		
 		Random r = new Random();
-		
+		Random r2 = new Random();
+
 		if (horizontal){
+			int cut = r.nextInt(MAZE_HEIGHT); //random place along the height to split horizontally
 			for (int i=0;i<MAZE_WIDTH;i++){
-				walls[r.nextInt(MAZE_HEIGHT)][i] = '-';
+				walls[cut][i] = 1;
 			}
-		}else{
+			walls[cut][r2.nextInt(MAZE_WIDTH)] = 0; //the hole in the wall guaranteed to form a passage
+			walls[cut][r2.nextInt(MAZE_WIDTH)] = 0; //the hole in the wall guaranteed to form a passage
+			walls[cut][r2.nextInt(MAZE_WIDTH)] = 0; //the hole in the wall guaranteed to form a passage
+		}else{ //cut vertically
+			int cut = r.nextInt(MAZE_WIDTH); //some column
 			for (int i=0;i<MAZE_HEIGHT;i++){
-				walls[i][r.nextInt(MAZE_WIDTH)] = '|';
+				walls[i][cut] = 1;
 			}
+			walls[r2.nextInt(MAZE_HEIGHT)][cut] = 0;
+			walls[r2.nextInt(MAZE_HEIGHT)][cut] = 0;
+			walls[r2.nextInt(MAZE_HEIGHT)][cut] = 0;
 		}
 		
 		generateMaze(MAZE_HEIGHT,MAZE_WIDTH,!horizontal);
 	}
    
 	public void drawMaze(){
+		walls[0][0] = 2;
 		Random r = new Random(12312312);
 		for (int i=0;i<MAZE_WIDTH;i++){
 			glPushMatrix();
 			for (int k=0;k<MAZE_HEIGHT;k++){
 				int rand = r.nextInt(10);
-				if (walls[i][k]=='|'){
-					//have to rotate
-					glRotatef(90,0,1,0);
-					if (rand==1)drawWall(tex_painting);
-					else drawWall(tex_wall);
+				//if 1 draw the cube walls at that location
+				if (walls[i][k]==1){
+					glPushMatrix();
+					if (rand % 5 != 0)drawWall(tex_wall);
+					else drawWall(tex_painting);
+					glPopMatrix();
+					
 				}
-				else if (walls[i][k]=='-'){
-					if (rand==1)drawWall(tex_painting);
-					else drawWall(tex_wall);
+				else if (walls[i][k]==2){
+					//rat
+					glPushMatrix();
+				    glBindTexture(GL_TEXTURE_2D, tex_rat);
+					glBegin(GL_QUADS);
+						glTexCoord2d(0,0);
+						glVertex3f(0,-2.5f,0);
+						
+						glTexCoord2d(0,1);
+						glVertex3f(0,1.0f,0);
+						
+						glTexCoord2d(1,1);
+						glVertex3f(1.0f,1.0f,0);
+						
+						glTexCoord2d(1,0);
+						glVertex3f(1.0f,-2.5f,0);
+					glPopMatrix();
 				}
-				glTranslatef(-5,0,0f);
+				glTranslatef(0,0,-5);
 			}
 			glPopMatrix();
-			glTranslatef(0,0,-5);
+			glTranslatef(-5,0,0);
 		}
 	}
     
@@ -447,7 +463,7 @@ public class PuzzleGame{
         	
 	        //draw brick walls of maze
         	glPushMatrix();
-	        glTranslatef(-20f,0,-30f);
+	        glTranslatef(-10f,0,0);
         	drawMaze();
         	glPopMatrix();
 
@@ -467,6 +483,7 @@ public class PuzzleGame{
 		    glScalef(1.1f,1.1f,0);
 		    String deltaTime = String.valueOf(System.currentTimeMillis()/1000 - startTime);
 		    SimpleText.drawString("TIME ELAPSED : " + deltaTime, 400,10);
+		    SimpleText.drawString("CURRENT DIRECTION : " + dir, 390,20);
 		    Display.update();
         }
 
@@ -477,54 +494,58 @@ public class PuzzleGame{
 		//   S(0)
 		//E(1)   W(3)
 		//   N(2) 
-    	if (dir==SOUTH) return y-1 >= 0 && (walls[x][y-1] =='-' || walls[x][y-1] == '|') ? true : false;
-    	else if (dir==EAST) return x-1 >= 0 && (walls[x-1][y] =='-' || walls[x-1][y] == '|') ? true : false;
-    	else if (dir==NORTH) return y+1 <= MAZE_HEIGHT && (walls[x][y+1] =='-' || walls[x][y+1] == '|') ? true : false;
-    	else if (dir==WEST) return x+1 <= MAZE_WIDTH && (walls[x+1][y] =='-' || walls[x+1][y] == '|') ? true : false;   
+    	//if (dir==NORTH) return y-1 >= 0 && (walls[x][y-1] =='-' || walls[x][y-1] == '|') ? true : false;
+    	//else if (dir==EAST) return x-1 >= 0 && (walls[x-1][y] =='-' || walls[x-1][y] == '|') ? true : false;
+    	//else if (dir==SOUTH) return y+1 <= MAZE_HEIGHT && (walls[x][y+1] =='-' || walls[x][y+1] == '|') ? true : false;
+    	//else if (dir==WEST) return x+1 <= MAZE_WIDTH && (walls[x+1][y] =='-' || walls[x+1][y] == '|') ? true : false;   
     	return false;
     }
     
     public void pollInput() {
     	glLoadIdentity();
-    	System.out.println(playerX + " " + playerY + " " + isColliding(playerX,playerY,dir));
-    	if (Keyboard.isKeyDown(Keyboard.KEY_A)) {
-    			if (!isColliding(playerX-1,playerY,dir)){
-    				glTranslatef(distX,0,0);
-    				playerX += 1;
-    			}
-        }
-    	else if (Keyboard.isKeyDown(Keyboard.KEY_D)) {
-    			if (!isColliding(playerX+1,playerY,dir)){
-    				glTranslatef(-distX,0,0);
-    				playerX -= 1;
-    			}
+    	//System.out.println(playerX + " " + playerY + " " + isColliding(playerX,playerY,dir));
+    	while (Keyboard.next()){
+	    	if (Keyboard.getEventKeyState()) {
+		    	if (Keyboard.getEventKey() == (Keyboard.KEY_A)) {
+		    			if (!isColliding(playerX-1,playerY,dir)){
+		    				glTranslatef(distX,0,0);
+		    				playerX += 1;
+		    			}
+		        }
+		    	else if (Keyboard.getEventKey() == (Keyboard.KEY_D)) {
+		    			if (!isColliding(playerX+1,playerY,dir)){
+		    				glTranslatef(-distX,0,0);
+		    				playerX -= 1;
+		    			}
+		    	}
+		    	else if (Keyboard.getEventKey() == (Keyboard.KEY_W)) {
+					if (!isColliding(playerX,playerY+1,dir)){
+		    			glTranslatef(0,0,distZ);
+		    			playerY += 1;
+					}
+		    	}
+		    	else if (Keyboard.getEventKey() == (Keyboard.KEY_S)) {
+					if (!isColliding(playerX,playerY-1,dir)){
+		    			glTranslatef(0,0,-distZ);
+		    			playerY -= 1;
+					}
+		    	}
+		    	else if (Keyboard.getEventKey() == (Keyboard.KEY_Q)) {
+		    		glRotatef(-90,0,1,0);
+		    		dir = (dir+1)%4;
+		        }
+		    	else if (Keyboard.getEventKey() == (Keyboard.KEY_E)) {
+		    		glRotatef(90,0,1,0);
+		    		dir = (dir-1)%4;
+		        }
+		    	else if (Keyboard.getEventKey() == (Keyboard.KEY_1)){
+		    		glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
+		    	}    	
+		    	else if (Keyboard.getEventKey() == (Keyboard.KEY_2)){
+		    		glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
+		    	}
+	    	}
     	}
-    	else if (Keyboard.isKeyDown(Keyboard.KEY_W)) {
-			if (!isColliding(playerX,playerY+1,dir)){
-    			glTranslatef(0,0,distZ);
-    			playerY += 1;
-			}
-    	}
-    	else if (Keyboard.isKeyDown(Keyboard.KEY_S)) {
-			if (!isColliding(playerX,playerY-1,dir)){
-    			glTranslatef(0,0,-distZ);
-    			playerY -= 1;
-			}
-    	}
-    	else if (Keyboard.isKeyDown(Keyboard.KEY_Q)) {
-    		glRotatef(-5,0,1,0);
-        }
-    	else if (Keyboard.isKeyDown(Keyboard.KEY_E)) {
-    		glRotatef(5,0,1,0);
-        }
-    	else if (Keyboard.isKeyDown(Keyboard.KEY_1)){
-    		glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
-    	}    	
-    	else if (Keyboard.isKeyDown(Keyboard.KEY_2)){
-    		glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
-    	}
-    	
-
     	matrixData = BufferUtils.createFloatBuffer(16);
     	glGetFloat(GL_MODELVIEW_MATRIX, matrixData);
     	increPlayerMatrix.load(matrixData);

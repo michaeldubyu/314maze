@@ -27,8 +27,8 @@ public class PuzzleGame{
 	private static int tex_painting;
 	private static int tex_rat;
 	
-	private static int MAZE_WIDTH = 15;
-	private static int MAZE_HEIGHT = 15;
+	private static int MAZE_WIDTH = 12;
+	private static int MAZE_HEIGHT = 12;
 
 	//new algorithm and structure for collisions and walls :
 	//0 for no walls, 1 for walls, draw a 5x5x5x5 square where they exist
@@ -36,6 +36,7 @@ public class PuzzleGame{
 	private static int playerX;
 	private static int playerY;
 	private static int wallRecurs;
+	private static Rat rat;
 	
 	private static int dir;
 	private static int SOUTH = 0;
@@ -53,17 +54,11 @@ public class PuzzleGame{
     static Matrix4f increPlayerMatrix = new Matrix4f();
     private static FloatBuffer matrixData;
 
-	static int distX = 2;
-	static int distZ = 2;
+	static int distX = 3;
+	static int distZ = 3;
 	static float distY = 5;
 
 	public static void init(){
-		//initialize the walls
-//		for (int i=0;i<MAZE_WIDTH;i++){
-//			for (int k=0;k<MAZE_HEIGHT;k++){
-//				walls[i][k] = '0';
-//			}
-//		} 
 		wallRecurs = 0;	
 		
 		generateMaze(40,40,false);
@@ -78,7 +73,9 @@ public class PuzzleGame{
 			}
 			System.out.print("\n");
 		}
-				
+		
+		rat = new Rat(0,0);
+		
 	    tex_floor = setupTextures("res/textures/ground.png");
 	    tex_ceiling = setupTextures("res/textures/ceiling.png");
 	    tex_wall = setupTextures("res/textures/brick.png");
@@ -92,12 +89,12 @@ public class PuzzleGame{
 		FloatBuffer lightDiffuse = BufferUtils.createFloatBuffer(4);
 		FloatBuffer lightAmbient = BufferUtils.createFloatBuffer(4);
 		
-	    lightSpecular.put(0.4f).put(0.4f).put(0.4f).put(1.0f).flip();
-	    lightDiffuse.put(0.9f).put(0.9f).put(0.9f).put(1.0f).flip();
-	    lightAmbient.put(0.5f).put(0.5f).put(0.5f).put(1.0f).flip();
+	    lightSpecular.put(0.9f).put(0.9f).put(0.9f).put(1.0f).flip();
+	    lightDiffuse.put(0.5f).put(0.5f).put(0.5f).put(1.0f).flip();
+	    lightAmbient.put(0.4f).put(0.5f).put(0.2f).put(1.0f).flip();
 
 	    FloatBuffer lightPosition = BufferUtils.createFloatBuffer(4);
-	    lightPosition.put(-10.0f).put(-10.0f).put(0.0f).put(1.0f).flip();
+	    lightPosition.put(-50.0f).put(2.0f).put(0.0f).put(1.0f).flip();
 	    
 	    FloatBuffer ambient = BufferUtils.createFloatBuffer(4);
 		ambient.put(0.8f).put(0.8f).put(0.8f).put(1.0f).flip();
@@ -159,19 +156,19 @@ public class PuzzleGame{
 	    glMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, matAmbientAndDiffuse);
 	    glBegin(GL_QUADS);
     		glTexCoord2d(0,0);
-    		glNormal3f(0,1.0f,0);
+    		glNormal3f(0,-1.0f,0);
     		glVertex3f(-80,2.5f,-80);
 	    
-	    	glTexCoord2d(0,80);
-	    	glNormal3f(0,1.0f,0);
+	    	glTexCoord2d(0,20);
+	    	glNormal3f(0,-1.0f,0);
 	    	glVertex3f(0,2.5f,-80);
 	    	
-	    	glTexCoord2d(80,80);
-	    	glNormal3f(0,1.0f,0);
+	    	glTexCoord2d(20,20);
+	    	glNormal3f(0,-1.0f,0);
 	    	glVertex3f(0,2.5f,0);
 	    	
-	    	glTexCoord2d(80,0);	 
-	    	glNormal3f(0,1.0f,0);
+	    	glTexCoord2d(20,0);	 
+	    	glNormal3f(0,-1.0f,0);
 	    	glVertex3f(-80,2.5f,0);
 	    glEnd();
 	    glDisable(GL_TEXTURE_2D);
@@ -188,22 +185,22 @@ public class PuzzleGame{
 	    glMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, matAmbientAndDiffuse);
 	    glBegin(GL_QUADS);
     		glTexCoord2d(0,0);
-    		glNormal3f(0,1.0f,0);
+    		glNormal3f(0,0.1f,0.5f);
     		glVertex3f(-2.5f,-2.5f,0);
 	    
     		if (tex!=tex_painting)glTexCoord2d(0,2);
-    		else glTexCoord2d(0,1);
-	    	glNormal3f(0,1.0f,0);
+    		else glTexCoord2d(0,-1);
+    		glNormal3f(0,0,1.0f);
 	    	glVertex3f(-2.5f,2.5f,0);
 	    	
 	    	if (tex!=tex_painting)glTexCoord2d(2,2);
-	    	else glTexCoord2d(1,1);
-	    	glNormal3f(0,1.0f,0);
+	    	else glTexCoord2d(-1,-1);
+    		glNormal3f(0,0,1.0f);
 	    	glVertex3f(2.5f,2.5f,0);
 	    	
 	    	if (tex!=tex_painting)glTexCoord2d(2,0);	
-	    	else glTexCoord2d(1,0);
-	    	glNormal3f(0,1.0f,0);
+	    	else glTexCoord2d(-1,0);
+    		glNormal3f(0,0,1.0f);
 	    	glVertex3f(2.5f,-2.5f, 0);
 	    glEnd();
 	    glDisable(GL_TEXTURE_2D);
@@ -333,7 +330,7 @@ public class PuzzleGame{
 		Random r2 = new Random();
 
 		if (horizontal){
-			int cut = r.nextInt(MAZE_HEIGHT); //random place along the height to split horizontally
+			int cut = r.nextInt(MAZE_HEIGHT-1); //random place along the height to split horizontally
 			for (int i=0;i<MAZE_WIDTH;i++){
 				walls[cut][i] = 1;
 			}
@@ -341,7 +338,7 @@ public class PuzzleGame{
 			walls[cut][r2.nextInt(MAZE_WIDTH)] = 0; //the hole in the wall guaranteed to form a passage
 			walls[cut][r2.nextInt(MAZE_WIDTH)] = 0; //the hole in the wall guaranteed to form a passage
 		}else{ //cut vertically
-			int cut = r.nextInt(MAZE_WIDTH); //some column
+			int cut = r.nextInt(MAZE_WIDTH-1); //some column
 			for (int i=0;i<MAZE_HEIGHT;i++){
 				walls[i][cut] = 1;
 			}
@@ -354,7 +351,7 @@ public class PuzzleGame{
 	}
    
 	public void drawMaze(){
-		walls[0][0] = 2;
+		
 		Random r = new Random(12312312);
 		for (int i=0;i<MAZE_WIDTH;i++){
 			glPushMatrix();
@@ -363,27 +360,8 @@ public class PuzzleGame{
 				//if 1 draw the cube walls at that location
 				if (walls[i][k]==1){
 					glPushMatrix();
-					if (rand % 5 != 0)drawWall(tex_wall);
+					if (rand % 10 != 0)drawWall(tex_wall);
 					else drawWall(tex_painting);
-					glPopMatrix();
-					
-				}
-				else if (walls[i][k]==2){
-					//rat
-					glPushMatrix();
-				    glBindTexture(GL_TEXTURE_2D, tex_rat);
-					glBegin(GL_QUADS);
-						glTexCoord2d(0,0);
-						glVertex3f(0,-2.5f,0);
-						
-						glTexCoord2d(0,1);
-						glVertex3f(0,1.0f,0);
-						
-						glTexCoord2d(1,1);
-						glVertex3f(1.0f,1.0f,0);
-						
-						glTexCoord2d(1,0);
-						glVertex3f(1.0f,-2.5f,0);
 					glPopMatrix();
 				}
 				glTranslatef(0,0,-5);
@@ -391,6 +369,34 @@ public class PuzzleGame{
 			glPopMatrix();
 			glTranslatef(-5,0,0);
 		}
+	}
+	
+	public void drawRat(int x, int y){
+      	//draw rat
+		glPushMatrix();
+		glEnable(GL_BLEND); 
+        glEnable(GL_TEXTURE_2D);
+	    glBindTexture(GL_TEXTURE_2D, tex_rat);
+	    glTranslatef(x,0,y);
+		glBegin(GL_QUADS);
+			glTexCoord2d(0,0);
+			glNormal3f(0,1,0);
+			glVertex3f(0,0.5f,-5);
+			
+			glTexCoord2d(0,1);
+			glNormal3f(0,1,0);
+			glVertex3f(0,-2.5f,-5);
+			
+			glTexCoord2d(1,1);
+			glNormal3f(0,1,0);
+			glVertex3f(3.0f,-2.5f,-5);
+
+			glTexCoord2d(1,0);
+			glNormal3f(0,1,0);
+			glVertex3f(3.0f,0.5f,-5);
+		glEnd();
+		glDisable(GL_BLEND);
+		glPopMatrix();
 	}
     
     public void start() {
@@ -403,11 +409,17 @@ public class PuzzleGame{
 		}
 
         long startTime = System.currentTimeMillis()/1000;
+        Random ratRandom = new Random();
+        int ratX = ratRandom.nextInt(MAZE_WIDTH-1);
+        int ratY = ratRandom.nextInt(MAZE_HEIGHT-1);
+        
         init();
-        glShadeModel(GL_SMOOTH);              
+        glShadeModel(GL_SMOOTH);      
+        glEnable(GL_COLOR_MATERIAL);
         glClearColor(0.0f, 0.0f, 0.0f, 0.5f);    
         glClearDepth(1.0f);                      
         glDepthFunc(GL_LEQUAL);    
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);  
         dir = SOUTH;
         lastFPS = getTime(); //init FPS time
@@ -463,8 +475,13 @@ public class PuzzleGame{
         	
 	        //draw brick walls of maze
         	glPushMatrix();
-	        glTranslatef(-10f,0,0);
+	        glTranslatef(-10f,0,-5f);
         	drawMaze();
+        	glPopMatrix();
+        	
+        	//draw rat
+        	glPushMatrix();
+        	drawRat(ratX,ratY);
         	glPopMatrix();
 
 	        pollInput();
@@ -481,9 +498,14 @@ public class PuzzleGame{
 		    glDisable(GL_DEPTH_TEST);
 
 		    glScalef(1.1f,1.1f,0);
+		    glColor3f(1,1,1);
+		    glDisable(GL_TEXTURE_2D);
+		    glEnable(GL_COLOR_MATERIAL);
+		    glDisable(GL_BLEND);
 		    String deltaTime = String.valueOf(System.currentTimeMillis()/1000 - startTime);
 		    SimpleText.drawString("TIME ELAPSED : " + deltaTime, 400,10);
 		    SimpleText.drawString("CURRENT DIRECTION : " + dir, 390,20);
+		    glDisable(GL_COLOR_MATERIAL);
 		    Display.update();
         }
 
@@ -505,47 +527,46 @@ public class PuzzleGame{
     	glLoadIdentity();
     	//System.out.println(playerX + " " + playerY + " " + isColliding(playerX,playerY,dir));
     	while (Keyboard.next()){
-	    	if (Keyboard.getEventKeyState()) {
-		    	if (Keyboard.getEventKey() == (Keyboard.KEY_A)) {
-		    			if (!isColliding(playerX-1,playerY,dir)){
-		    				glTranslatef(distX,0,0);
-		    				playerX += 1;
-		    			}
-		        }
-		    	else if (Keyboard.getEventKey() == (Keyboard.KEY_D)) {
-		    			if (!isColliding(playerX+1,playerY,dir)){
-		    				glTranslatef(-distX,0,0);
-		    				playerX -= 1;
-		    			}
-		    	}
-		    	else if (Keyboard.getEventKey() == (Keyboard.KEY_W)) {
-					if (!isColliding(playerX,playerY+1,dir)){
-		    			glTranslatef(0,0,distZ);
-		    			playerY += 1;
-					}
-		    	}
-		    	else if (Keyboard.getEventKey() == (Keyboard.KEY_S)) {
-					if (!isColliding(playerX,playerY-1,dir)){
-		    			glTranslatef(0,0,-distZ);
-		    			playerY -= 1;
-					}
-		    	}
-		    	else if (Keyboard.getEventKey() == (Keyboard.KEY_Q)) {
-		    		glRotatef(-90,0,1,0);
-		    		dir = (dir+1)%4;
-		        }
-		    	else if (Keyboard.getEventKey() == (Keyboard.KEY_E)) {
-		    		glRotatef(90,0,1,0);
-		    		dir = (dir-1)%4;
-		        }
-		    	else if (Keyboard.getEventKey() == (Keyboard.KEY_1)){
-		    		glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
-		    	}    	
-		    	else if (Keyboard.getEventKey() == (Keyboard.KEY_2)){
-		    		glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
-		    	}
+	    	if (Keyboard.isKeyDown(Keyboard.KEY_A)) {
+	    			if (!isColliding(playerX-1,playerY,dir)){
+	    				glTranslatef(distX,0,0);
+	    				playerX += 1;
+	    			}
+	        }
+	    	else if (Keyboard.isKeyDown(Keyboard.KEY_D)) {
+	    			if (!isColliding(playerX+1,playerY,dir)){
+	    				glTranslatef(-distX,0,0);
+	    				playerX -= 1;
+	    			}
+	    	}
+	    	else if (Keyboard.isKeyDown(Keyboard.KEY_W)) {
+				if (!isColliding(playerX,playerY+1,dir)){
+	    			glTranslatef(0,0,distZ);
+	    			playerY += 1;
+				}
+	    	}
+	    	else if (Keyboard.isKeyDown(Keyboard.KEY_S)) {
+				if (!isColliding(playerX,playerY-1,dir)){
+	    			glTranslatef(0,0,-distZ);
+	    			playerY -= 1;
+				}
+	    	}
+	    	else if (Keyboard.isKeyDown(Keyboard.KEY_Q)) {
+	    		glRotatef(-10,0,1,0);
+	    		dir = (dir+1)%4;
+	        }
+	    	else if (Keyboard.isKeyDown(Keyboard.KEY_E)) {
+	    		glRotatef(10,0,1,0);
+	    		dir = (dir-1)%4;
+	        }
+	    	else if (Keyboard.getEventKey() == (Keyboard.KEY_1)){
+	    		glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
+	    	}    	
+	    	else if (Keyboard.getEventKey() == (Keyboard.KEY_2)){
+	    		glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
 	    	}
     	}
+
     	matrixData = BufferUtils.createFloatBuffer(16);
     	glGetFloat(GL_MODELVIEW_MATRIX, matrixData);
     	increPlayerMatrix.load(matrixData);

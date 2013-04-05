@@ -2,10 +2,20 @@
 public class Rat {
 	int x;
 	int y;
+	double radius;
 	
-	public Rat(int x, int y){
+	public double getRadius() {
+		return radius;
+	}
+
+	public void setRadius(double radius) {
+		this.radius = radius;
+	}
+
+	public Rat(int x, int y, double radius){
 		this.x = x;
 		this.y = y;
+		this.radius = radius;
 	}
 	
 	public int getX() {

@@ -2,6 +2,7 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
+import java.util.ArrayList;
 import java.util.Random;
 import java.io.FileInputStream;
 
@@ -13,6 +14,7 @@ import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.Display;
 import org.lwjgl.opengl.DisplayMode;
 import org.lwjgl.util.Timer;
+import org.lwjgl.util.vector.Matrix;
 import org.lwjgl.util.vector.Matrix4f;
 
 import de.matthiasmann.twl.utils.PNGDecoder;
@@ -35,22 +37,21 @@ public class PuzzleGame{
 	private static int[][] walls = new int[MAZE_WIDTH][MAZE_HEIGHT];
 	private static int playerX;
 	private static int playerY;
+	private static double playerRadius = 1;
+	
 	private static int wallRecurs;
 	private static Rat rat;
-	
-	private static int dir;
-	private static int SOUTH = 0;
-	private static int EAST = 1;
-	private static int NORTH = 2;
-	private static int WEST= 3;
-	
+		
 	int fps;
 	long lastFPS;
+	static boolean gameComplete;
+	static String deltaTime;
 	
     static FloatBuffer matSpecular = BufferUtils.createFloatBuffer(4);
     static FloatBuffer matAmbientAndDiffuse = BufferUtils.createFloatBuffer(4);
     
     static Matrix4f playerMatrix = new Matrix4f();
+    static Matrix playerInvertedMatrix = new Matrix4f();
     static Matrix4f increPlayerMatrix = new Matrix4f();
     private static FloatBuffer matrixData;
 
@@ -59,22 +60,14 @@ public class PuzzleGame{
 	static float distY = 5;
 
 	public static void init(){
+		gameComplete = false;
 		wallRecurs = 0;	
-		
 		generateMaze(40,40,false);
 		
+		Random r = new Random();
+		rat = new Rat(-r.nextInt(70), -r.nextInt(70), 5);
 		playerX = 0;
-		playerY = 0;
-		dir = SOUTH;
-		
-		for (int i=0;i<MAZE_WIDTH;i++){
-			for (int k=0;k<MAZE_HEIGHT;k++){
-				System.out.print(walls[i][k]);
-			}
-			System.out.print("\n");
-		}
-		
-		rat = new Rat(0,0);
+		playerY = 0;		
 		
 	    tex_floor = setupTextures("res/textures/ground.png");
 	    tex_ceiling = setupTextures("res/textures/ceiling.png");
@@ -89,12 +82,12 @@ public class PuzzleGame{
 		FloatBuffer lightDiffuse = BufferUtils.createFloatBuffer(4);
 		FloatBuffer lightAmbient = BufferUtils.createFloatBuffer(4);
 		
-	    lightSpecular.put(0.9f).put(0.9f).put(0.9f).put(1.0f).flip();
-	    lightDiffuse.put(0.5f).put(0.5f).put(0.5f).put(1.0f).flip();
-	    lightAmbient.put(0.4f).put(0.5f).put(0.2f).put(1.0f).flip();
+	    lightSpecular.put(1.0f).put(1.0f).put(1.0f).put(1.0f).flip();
+	    lightDiffuse.put(0.1f).put(0.1f).put(0.5f).put(1.0f).flip();
+	    lightAmbient.put(0.5f).put(0.5f).put(0.5f).put(1.0f).flip();
 
 	    FloatBuffer lightPosition = BufferUtils.createFloatBuffer(4);
-	    lightPosition.put(-50.0f).put(2.0f).put(0.0f).put(1.0f).flip();
+	    lightPosition.put(-40.0f).put(2.0f).put(0.0f).put(1.0f).flip();
 	    
 	    FloatBuffer ambient = BufferUtils.createFloatBuffer(4);
 		ambient.put(0.8f).put(0.8f).put(0.8f).put(1.0f).flip();
@@ -381,7 +374,7 @@ public class PuzzleGame{
 		glBegin(GL_QUADS);
 			glTexCoord2d(0,0);
 			glNormal3f(0,1,0);
-			glVertex3f(0,0.5f,-5);
+			glVertex3f(0,0.0f,-5);
 			
 			glTexCoord2d(0,1);
 			glNormal3f(0,1,0);
@@ -393,7 +386,7 @@ public class PuzzleGame{
 
 			glTexCoord2d(1,0);
 			glNormal3f(0,1,0);
-			glVertex3f(3.0f,0.5f,-5);
+			glVertex3f(3.0f,0.0f,-5);
 		glEnd();
 		glDisable(GL_BLEND);
 		glPopMatrix();
@@ -409,9 +402,6 @@ public class PuzzleGame{
 		}
 
         long startTime = System.currentTimeMillis()/1000;
-        Random ratRandom = new Random();
-        int ratX = ratRandom.nextInt(MAZE_WIDTH-1);
-        int ratY = ratRandom.nextInt(MAZE_HEIGHT-1);
         
         init();
         glShadeModel(GL_SMOOTH);      
@@ -421,148 +411,189 @@ public class PuzzleGame{
         glDepthFunc(GL_LEQUAL);    
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);  
-        dir = SOUTH;
         lastFPS = getTime(); //init FPS time
 
         while (!Display.isCloseRequested()) {
-		    // Clear the screen and depth buffer
-		    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	
-        	
-		    // set the color of the quad (R,G,B,A)
-		    glMatrixMode(GL_PROJECTION);
-	        
-		    // set up view here
-		    glLoadIdentity();
-		    gluPerspective(60, 1, 1, 500 ); //near of 1, far of 80
-		    glMatrixMode(GL_MODELVIEW);
-	        glLoadIdentity();	
-	        glEnable(GL_LIGHTING);
-	        glEnable(GL_DEPTH_TEST);              
+        	if (!gameComplete){
+			    // Clear the screen and depth buffer
+			    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	
+	        	
+			    // set the color of the quad (R,G,B,A)
+			    glMatrixMode(GL_PROJECTION);
+		        
+			    // set up view here
+			    glLoadIdentity();
+			    gluPerspective(60, 1, 1, 500 ); //near of 1, far of 80
+			    glMatrixMode(GL_MODELVIEW);
+		        glLoadIdentity();	
+		        glEnable(GL_LIGHTING);
+		        glEnable(GL_DEPTH_TEST);              
+	
+	        	//we are in the first person view
+	        	matrixData = BufferUtils.createFloatBuffer(16);
+	        	increPlayerMatrix.store(matrixData);
+	        	matrixData.flip();
+	        	glMultMatrix(matrixData);
+	        	
+	        	matrixData = BufferUtils.createFloatBuffer(16);
+	        	playerMatrix.store(matrixData);
+	        	matrixData.flip();
+	        	glMultMatrix(matrixData);
+	
+	        	//save player matrix
+	        	matrixData = BufferUtils.createFloatBuffer(16);
+	        	glGetFloat(GL_MODELVIEW_MATRIX, matrixData);
+	        	playerMatrix.load(matrixData);     
+	        	
+	        	//draw the walls of the maze
+	        	glPushMatrix();	
+		        glTranslatef(2.5f,0,2.5f);
+	        	drawMazeWalls();
+	        	glPopMatrix();
+	        	
+				//draw floor
+		        glPushMatrix();
+		        glTranslatef(2.5f,0,2.5f);
+		        drawFloor();
+		        glPopMatrix();
+		        
+		        //draw ceiling
+		        glPushMatrix();
+		        glTranslatef(2.5f,0,2.5f);
+		        drawCeiling();
+		        glPopMatrix();
+	        	
+		        //draw brick walls of maze
+	        	glPushMatrix();
+		        glTranslatef(-10f,0,-5f);
+	        	drawMaze();
+	        	glPopMatrix();
+	        	
+	        	//draw rat
+	        	glPushMatrix();
+	        	drawRat(rat.getX(), rat.getY());
+	        	glPopMatrix();
+	        	
+		        pollInput();
+		        	        
+			    updateFPS();
+	
+			    //2d init and drawing
+			    glMatrixMode(GL_PROJECTION);
+			    glLoadIdentity();
+			    glOrtho(0,600,0,600,-1,1);
+			    
+			    glMatrixMode(GL_MODELVIEW);
+			    glLoadIdentity();
+			    glDisable(GL_DEPTH_TEST);
+	
+			    glScalef(1.1f,1.1f,0);
+			    glColor3f(1,1,1);
+			    glDisable(GL_TEXTURE_2D);
+			    glEnable(GL_COLOR_MATERIAL);
+			    glDisable(GL_BLEND);
+			    deltaTime = String.valueOf(System.currentTimeMillis()/1000 - startTime);
+			    SimpleText.drawString("TIME ELAPSED : " + deltaTime, 400,10);
+			    glDisable(GL_COLOR_MATERIAL);
+			    
+			    Display.update();
+	        }else{
+			    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	
 
-        	//we are in the first person view
-        	matrixData = BufferUtils.createFloatBuffer(16);
-        	increPlayerMatrix.store(matrixData);
-        	matrixData.flip();
-        	glMultMatrix(matrixData);
-        	
-        	matrixData = BufferUtils.createFloatBuffer(16);
-        	playerMatrix.store(matrixData);
-        	matrixData.flip();
-
-        	//save player matrix
-        	glMultMatrix(matrixData);
-        	glGetFloat(GL_MODELVIEW_MATRIX, matrixData);
-        	playerMatrix.load(matrixData);
-        	matrixData.flip();
-                	
-        	//draw the walls of the maze
-        	glPushMatrix();	
-	        glTranslatef(2.5f,0,2.5f);
-        	drawMazeWalls();
-        	glPopMatrix();
-        	
-			//draw floor
-	        glPushMatrix();
-	        glTranslatef(2.5f,0,2.5f);
-	        drawFloor();
-	        glPopMatrix();
-	        
-	        //draw ceiling
-	        glPushMatrix();
-	        glTranslatef(2.5f,0,2.5f);
-	        drawCeiling();
-	        glPopMatrix();
-        	
-	        //draw brick walls of maze
-        	glPushMatrix();
-	        glTranslatef(-10f,0,-5f);
-        	drawMaze();
-        	glPopMatrix();
-        	
-        	//draw rat
-        	glPushMatrix();
-        	drawRat(ratX,ratY);
-        	glPopMatrix();
-
-	        pollInput();
-	        
-		    updateFPS();
-
-		    //2d init and drawing
-		    glMatrixMode(GL_PROJECTION);
-		    glLoadIdentity();
-		    glOrtho(0,600,0,600,-1,1);
-		    
-		    glMatrixMode(GL_MODELVIEW);
-		    glLoadIdentity();
-		    glDisable(GL_DEPTH_TEST);
-
-		    glScalef(1.1f,1.1f,0);
-		    glColor3f(1,1,1);
-		    glDisable(GL_TEXTURE_2D);
-		    glEnable(GL_COLOR_MATERIAL);
-		    glDisable(GL_BLEND);
-		    String deltaTime = String.valueOf(System.currentTimeMillis()/1000 - startTime);
-		    SimpleText.drawString("TIME ELAPSED : " + deltaTime, 400,10);
-		    SimpleText.drawString("CURRENT DIRECTION : " + dir, 390,20);
-		    glDisable(GL_COLOR_MATERIAL);
-		    Display.update();
+	        	//game complete, draw win screen				
+			    //2d init and drawing	        	
+			    glMatrixMode(GL_PROJECTION);
+			    glLoadIdentity();
+			    glOrtho(0,600,0,600,-1,1);
+			    
+			    glMatrixMode(GL_MODELVIEW);
+			    glLoadIdentity();
+			    glDisable(GL_DEPTH_TEST);
+	
+			    glScalef(1.1f,1.1f,0);
+			    glColor3f(1,1,1);
+			    glDisable(GL_TEXTURE_2D);
+			    glEnable(GL_COLOR_MATERIAL);
+			    glDisable(GL_BLEND);
+			    SimpleText.drawString("GOT THAT RAT", 220,310);
+			    SimpleText.drawString("YOUR TIME WAS : " + deltaTime + " SECONDS.", 175,300);
+			    SimpleText.drawString("TO TRY AGAIN PRESS 'R'", 200, 290);
+			    glDisable(GL_COLOR_MATERIAL);
+			    startTime = System.currentTimeMillis()/1000;
+			    Display.update();
+			    
+			    pollInput();
+			    
+			    updateFPS();
+	        }
         }
 
         Display.destroy();
     }
     
-    public boolean isColliding(int x, int y, int dir){
-		//   S(0)
-		//E(1)   W(3)
-		//   N(2) 
-    	//if (dir==NORTH) return y-1 >= 0 && (walls[x][y-1] =='-' || walls[x][y-1] == '|') ? true : false;
-    	//else if (dir==EAST) return x-1 >= 0 && (walls[x-1][y] =='-' || walls[x-1][y] == '|') ? true : false;
-    	//else if (dir==SOUTH) return y+1 <= MAZE_HEIGHT && (walls[x][y+1] =='-' || walls[x][y+1] == '|') ? true : false;
-    	//else if (dir==WEST) return x+1 <= MAZE_WIDTH && (walls[x+1][y] =='-' || walls[x+1][y] == '|') ? true : false;   
-    	return false;
+    public boolean isColliding(int x, int y){
+		int dx = rat.getX() - playerX;
+		int dy = rat.getY() - playerY;
+		double d = Math.sqrt(dx * dx + dy * dy);
+		if 	(d <= rat.getRadius() + playerRadius){
+			gameComplete = true;
+			return true;
+		}
+		return false;
     }
     
     public void pollInput() {
     	glLoadIdentity();
-    	//System.out.println(playerX + " " + playerY + " " + isColliding(playerX,playerY,dir));
+    	System.out.println(playerX + " " + playerY + " " + rat.getX() + " " + rat.getY());
     	while (Keyboard.next()){
 	    	if (Keyboard.isKeyDown(Keyboard.KEY_A)) {
-	    			if (!isColliding(playerX-1,playerY,dir)){
-	    				glTranslatef(distX,0,0);
-	    				playerX += 1;
-	    			}
+    			if (!isColliding(playerX-1,playerY)){
+    				glTranslatef(distX,0,0);
+    				playerX -= 3;
+    			}
 	        }
 	    	else if (Keyboard.isKeyDown(Keyboard.KEY_D)) {
-	    			if (!isColliding(playerX+1,playerY,dir)){
-	    				glTranslatef(-distX,0,0);
-	    				playerX -= 1;
-	    			}
+    			if (!isColliding(playerX+1,playerY)){
+    				glTranslatef(-distX,0,0);
+    				playerX += 3;
+    			}
 	    	}
 	    	else if (Keyboard.isKeyDown(Keyboard.KEY_W)) {
-				if (!isColliding(playerX,playerY+1,dir)){
+				if (!isColliding(playerX,playerY-1)){
 	    			glTranslatef(0,0,distZ);
-	    			playerY += 1;
+					playerY -= 3;
 				}
 	    	}
 	    	else if (Keyboard.isKeyDown(Keyboard.KEY_S)) {
-				if (!isColliding(playerX,playerY-1,dir)){
 	    			glTranslatef(0,0,-distZ);
-	    			playerY -= 1;
-				}
+					playerY += 3;
 	    	}
-	    	else if (Keyboard.isKeyDown(Keyboard.KEY_Q)) {
-	    		glRotatef(-10,0,1,0);
-	    		dir = (dir+1)%4;
-	        }
-	    	else if (Keyboard.isKeyDown(Keyboard.KEY_E)) {
-	    		glRotatef(10,0,1,0);
-	    		dir = (dir-1)%4;
-	        }
-	    	else if (Keyboard.getEventKey() == (Keyboard.KEY_1)){
+	    	else if (Keyboard.isKeyDown(Keyboard.KEY_R)){
+	    		if (gameComplete == true){
+	    			gameComplete = false;
+	    			glLoadIdentity();
+		        	matrixData = BufferUtils.createFloatBuffer(16);
+		        	glGetFloat(GL_MODELVIEW_MATRIX, matrixData);
+		        	playerMatrix.load(matrixData);
+	    			
+		        	Random r = new Random();
+		    		rat.setX(-r.nextInt(70));
+		    		rat.setY(-r.nextInt(70));
+		    		
+		    		playerX = 0;
+		    		playerY = 0;
+	    		}
+	    	}
+//	    	else if (Keyboard.isKeyDown(Keyboard.KEY_Q)) {
+//	    		glRotatef(-90,0,1,0);
+//	        }
+//	    	else if (Keyboard.isKeyDown(Keyboard.KEY_E)) {
+//	    		glRotatef(90,0,1,0);
+//	        }
+	    	else if (Keyboard.isKeyDown(Keyboard.KEY_1)){
 	    		glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
 	    	}    	
-	    	else if (Keyboard.getEventKey() == (Keyboard.KEY_2)){
+	    	else if (Keyboard.isKeyDown(Keyboard.KEY_2)){
 	    		glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
 	    	}
     	}
@@ -574,7 +605,7 @@ public class PuzzleGame{
     
     public void updateFPS() {
         if (getTime() - lastFPS > 1000) {
-            Display.setTitle("Windows 95 Screensaver - FPS: " + fps); 
+            Display.setTitle("RatFinder - FPS: " + fps); 
             fps = 0; //reset the FPS counter
             lastFPS += 1000; //add one second
         }
